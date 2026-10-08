@@ -4,36 +4,20 @@
 using namespace std;
 
 Passenger::Passenger(int id, string name, string phone, string email)
+    : User(id, name, phone, email)
 {
-    passengerId = id;
-    this->name = name;
-    this->phone = phone;
-    this->email = email;
 }
 
-int Passenger::getPassengerId() const
+void Passenger::displayRole() const
 {
-    return passengerId;
+    cout << "Role: Passenger" << endl;
 }
 
-string Passenger::getName() const
+void Passenger::displayUser() const
 {
-    return name;
-}
+    cout << "\n===== PASSENGER DETAILS =====\n";
 
-string Passenger::getPhone() const
-{
-    return phone;
-}
-
-string Passenger::getEmail() const
-{
-    return email;
-}
-
-void Passenger::displayPassenger() const
-{
-    cout << "\nPassenger ID: " << passengerId << endl;
+    cout << "Passenger ID: " << userId << endl;
     cout << "Name: " << name << endl;
     cout << "Phone: " << phone << endl;
     cout << "Email: " << email << endl;
