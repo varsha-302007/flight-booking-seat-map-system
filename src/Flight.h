@@ -25,7 +25,11 @@ public:
     string getDate() const;
 
     void addSeat(Seat seat);
+
     Seat* findSeat(string seatNumber);
+
+    void bookSeat(string seatNumber);
+
     void displaySeats() const;
 
     double calculateDynamicPrice(Seat* seat) const;

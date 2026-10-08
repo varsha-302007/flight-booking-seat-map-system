@@ -3,6 +3,7 @@
 #include "Flight.h"
 #include "Passenger.h"
 #include "Booking.h"
+#include "BookingException.h"
 
 using namespace std;
 
@@ -50,8 +51,9 @@ int main()
         "varsha@gmail.com"
     );
 
-    // Pointer to current booking
     Booking* booking = nullptr;
+
+    int nextBookingId = 1001;
 
     int choice;
 
@@ -78,12 +80,12 @@ int main()
         cout << "Enter your choice: ";
         cin >> choice;
 
-        // ======================================
-        // OPTION 1
-        // ======================================
-
         switch (choice)
         {
+        // ======================================
+        // VIEW FLIGHT
+        // ======================================
+
         case 1:
 
             cout << "\n===== FLIGHT DETAILS =====\n";
@@ -105,7 +107,7 @@ int main()
             break;
 
         // ======================================
-        // OPTION 2
+        // VIEW SEAT MAP
         // ======================================
 
         case 2:
@@ -115,7 +117,6 @@ int main()
             break;
 
         // ======================================
-        // OPTION 3
         // BOOK SEAT
         // ======================================
 
@@ -126,73 +127,77 @@ int main()
             cout << "\nEnter seat number: ";
             cin >> selectedSeat;
 
-            Seat* seat =
-                flight1.findSeat(selectedSeat);
-
-            // Check whether seat exists
-            if (seat == nullptr)
+            try
             {
-                cout << "\nInvalid seat number!\n";
-                break;
-            }
+                // Find seat
+                Seat* seat =
+                    flight1.findSeat(selectedSeat);
 
-            // Check whether seat is already booked
-            if (seat->isBooked())
+                // Calculate price before booking
+                if (seat == nullptr)
+                {
+                    throw BookingException(
+                        "Invalid seat number!"
+                    );
+                }
+
+                double dynamicPrice =
+                    flight1.calculateDynamicPrice(seat);
+
+                cout << "\n===== PRICE DETAILS =====\n";
+
+                cout << "Seat: "
+                     << seat->getSeatNumber()
+                     << endl;
+
+                cout << "Class: "
+                     << seat->getSeatClass()
+                     << endl;
+
+                cout << "Base Price: Rs."
+                     << seat->getPrice()
+                     << endl;
+
+                cout << "Final Price: Rs."
+                     << dynamicPrice
+                     << endl;
+
+                // Book seat
+                flight1.bookSeat(selectedSeat);
+
+                // Remove previous booking
+                if (booking != nullptr)
+                {
+                    delete booking;
+                    booking = nullptr;
+                }
+
+                // Create booking
+                booking = new Booking(
+                    nextBookingId,
+                    passenger1.getPassengerId(),
+                    flight1.getFlightNumber(),
+                    seat->getSeatNumber(),
+                    dynamicPrice
+                );
+
+                nextBookingId++;
+
+                cout << "\n===== BOOKING CONFIRMED =====\n";
+
+                booking->displayBooking();
+            }
+            catch (const BookingException& e)
             {
-                cout << "\nSorry! Seat is already booked.\n";
-                break;
+                cout << "\nBooking failed: "
+                     << e.what()
+                     << endl;
             }
-
-            // Calculate dynamic price BEFORE booking
-            double dynamicPrice =
-                flight1.calculateDynamicPrice(seat);
-
-            cout << "\n===== PRICE DETAILS =====\n";
-
-            cout << "Seat: "
-                 << seat->getSeatNumber()
-                 << endl;
-
-            cout << "Class: "
-                 << seat->getSeatClass()
-                 << endl;
-
-            cout << "Base Price: Rs."
-                 << seat->getPrice()
-                 << endl;
-
-            cout << "Final Price: Rs."
-                 << dynamicPrice
-                 << endl;
-
-            // Book the seat
-            seat->bookSeat();
-
-            // Delete previous booking if one exists
-            if (booking != nullptr)
-            {
-                delete booking;
-                booking = nullptr;
-            }
-
-            // Create new booking
-            booking = new Booking(
-                1001,
-                passenger1.getPassengerId(),
-                flight1.getFlightNumber(),
-                seat->getSeatNumber(),
-                dynamicPrice
-            );
-
-            cout << "\n===== BOOKING CONFIRMED =====\n";
-
-            booking->displayBooking();
 
             break;
         }
 
         // ======================================
-        // OPTION 4
         // VIEW BOOKING
         // ======================================
 
@@ -210,7 +215,6 @@ int main()
             break;
 
         // ======================================
-        // OPTION 5
         // CANCEL BOOKING
         // ======================================
 
@@ -240,7 +244,6 @@ int main()
             break;
 
         // ======================================
-        // OPTION 6
         // EXIT
         // ======================================
 
@@ -252,7 +255,7 @@ int main()
             break;
 
         // ======================================
-        // INVALID OPTION
+        // INVALID MENU OPTION
         // ======================================
 
         default:
@@ -263,7 +266,6 @@ int main()
 
     } while (choice != 6);
 
-    // Free dynamically allocated booking
     delete booking;
 
     return 0;
