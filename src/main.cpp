@@ -6,11 +6,18 @@
 #include "Booking.h"
 #include "BookingException.h"
 #include "User.h"
+#include "FileManager.h"
 
 using namespace std;
 
 int main()
 {
+    FileManager fileManager;
+
+    // --------------------------------------------------
+    // FLIGHT SETUP
+    // --------------------------------------------------
+
     Flight flight1(
         "AI101",
         "Chennai",
@@ -34,16 +41,73 @@ int main()
         Seat("1D", "Business", 9000)
     );
 
-    Passenger passenger1(
-        101,
-        "Varsha",
-        "9876543210",
-        "varsha@gmail.com"
-    );
+    // --------------------------------------------------
+    // PASSENGER SETUP
+    // --------------------------------------------------
 
-    vector<Booking> bookings;
+    vector<Passenger> passengers =
+        fileManager.loadPassengers();
+
+    if (passengers.empty())
+    {
+        passengers.push_back(
+            Passenger(
+                101,
+                "Varsha",
+                "9876543210",
+                "varsha@gmail.com"
+            )
+        );
+    }
+
+    Passenger passenger1 = passengers[0];
+
+    // --------------------------------------------------
+    // LOAD PREVIOUS BOOKINGS
+    // --------------------------------------------------
+
+    vector<Booking> bookings =
+        fileManager.loadBookings();
 
     int nextBookingId = 1001;
+
+    for (const Booking& booking : bookings)
+    {
+        if (booking.getBookingId() >= nextBookingId)
+        {
+            nextBookingId =
+                booking.getBookingId() + 1;
+        }
+
+        // Restore booked seats only for confirmed bookings
+        if (booking.getStatus() == "Confirmed")
+        {
+            if (booking.getFlightNumber()
+                == flight1.getFlightNumber())
+            {
+                Seat* seat =
+                    flight1.findSeat(
+                        booking.getSeatNumber()
+                    );
+
+                if (seat != nullptr &&
+                    !seat->isBooked())
+                {
+                    seat->bookSeat();
+                }
+            }
+        }
+    }
+
+    // --------------------------------------------------
+    // SAVE INITIAL FLIGHT INFORMATION
+    // --------------------------------------------------
+
+    vector<Flight> flights;
+
+    flights.push_back(flight1);
+
+    fileManager.saveFlights(flights);
 
     int choice;
 
@@ -70,6 +134,10 @@ int main()
 
         switch (choice)
         {
+        // --------------------------------------------------
+        // VIEW FLIGHT
+        // --------------------------------------------------
+
         case 1:
 
             cout << "\n===== FLIGHT DETAILS =====\n";
@@ -90,11 +158,19 @@ int main()
 
             break;
 
+        // --------------------------------------------------
+        // VIEW SEAT MAP
+        // --------------------------------------------------
+
         case 2:
 
             flight1.displaySeats();
 
             break;
+
+        // --------------------------------------------------
+        // BOOK SEAT
+        // --------------------------------------------------
 
         case 3:
         {
@@ -158,6 +234,14 @@ int main()
 
                 nextBookingId++;
 
+                // Save immediately after successful booking
+                fileManager.saveBookings(bookings);
+
+                passengers.clear();
+                passengers.push_back(passenger1);
+
+                fileManager.savePassengers(passengers);
+
                 cout << "\n===== BOOKING CONFIRMED =====\n";
 
                 newBooking.displayBooking();
@@ -172,6 +256,10 @@ int main()
             break;
         }
 
+        // --------------------------------------------------
+        // VIEW BOOKINGS
+        // --------------------------------------------------
+
         case 4:
 
             if (bookings.empty())
@@ -185,11 +273,16 @@ int main()
                 for (const Booking& booking : bookings)
                 {
                     booking.displayBooking();
+
                     cout << "-----------------------------\n";
                 }
             }
 
             break;
+
+        // --------------------------------------------------
+        // CANCEL BOOKING
+        // --------------------------------------------------
 
         case 5:
         {
@@ -230,6 +323,9 @@ int main()
                         seat->cancelSeat();
                     }
 
+                    // Save updated booking status
+                    fileManager.saveBookings(bookings);
+
                     cout << "\nBooking "
                          << bookingId
                          << " cancelled successfully.\n";
@@ -246,11 +342,19 @@ int main()
             break;
         }
 
+        // --------------------------------------------------
+        // PASSENGER DETAILS
+        // --------------------------------------------------
+
         case 6:
 
             passenger1.displayUser();
 
             break;
+
+        // --------------------------------------------------
+        // POLYMORPHISM
+        // --------------------------------------------------
 
         case 7:
         {
@@ -264,7 +368,26 @@ int main()
             break;
         }
 
+        // --------------------------------------------------
+        // EXIT
+        // --------------------------------------------------
+
         case 8:
+
+            // Save latest data before exiting
+            fileManager.saveBookings(bookings);
+
+            passengers.clear();
+            passengers.push_back(passenger1);
+
+            fileManager.savePassengers(passengers);
+
+            flights.clear();
+            flights.push_back(flight1);
+
+            fileManager.saveFlights(flights);
+
+            cout << "\nData saved successfully.\n";
 
             cout << "\nThank you for using "
                  << "Flight Booking System!\n";
