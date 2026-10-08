@@ -50,9 +50,52 @@ Seat* Flight::findSeat(string seatNumber)
     return nullptr;
 }
 
+double Flight::calculateDynamicPrice(Seat* seat) const
+{
+    int totalSeats = seats.size();
+    int bookedSeats = 0;
+
+    for (const Seat& currentSeat : seats)
+    {
+        if (currentSeat.isBooked())
+        {
+            bookedSeats++;
+        }
+    }
+
+    if (totalSeats == 0)
+    {
+        return seat->getPrice();
+    }
+
+    double occupancy =
+        (double)bookedSeats / totalSeats * 100;
+
+    double basePrice = seat->getPrice();
+
+    if (occupancy <= 25)
+    {
+        return basePrice;
+    }
+    else if (occupancy <= 50)
+    {
+        return basePrice * 1.10;
+    }
+    else if (occupancy <= 75)
+    {
+        return basePrice * 1.20;
+    }
+    else
+    {
+        return basePrice * 1.30;
+    }
+}
+
 void Flight::displaySeats() const
 {
-    cout << "\nSeat Map for Flight " << flightNumber << endl;
+    cout << "\nSeat Map for Flight "
+         << flightNumber << endl;
+
     cout << "-----------------------------" << endl;
 
     for (const Seat& seat : seats)
@@ -71,6 +114,9 @@ void Flight::displaySeats() const
             cout << "Available";
         }
 
-        cout << " - Rs." << seat.getPrice() << endl;
+        cout << " - Base Price: Rs."
+             << seat.getPrice();
+
+        cout << endl;
     }
 }

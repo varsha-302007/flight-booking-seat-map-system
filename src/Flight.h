@@ -27,6 +27,8 @@ public:
     void addSeat(Seat seat);
     Seat* findSeat(string seatNumber);
     void displaySeats() const;
+
+    double calculateDynamicPrice(Seat* seat) const;
 };
 
 #endif
