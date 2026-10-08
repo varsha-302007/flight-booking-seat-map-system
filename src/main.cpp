@@ -1,28 +1,22 @@
 #include <iostream>
+#include <vector>
 
 #include "Flight.h"
 #include "Passenger.h"
 #include "Booking.h"
 #include "BookingException.h"
+#include "User.h"
 
 using namespace std;
 
 int main()
 {
-    // ==========================================
-    // CREATE FLIGHT
-    // ==========================================
-
     Flight flight1(
         "AI101",
         "Chennai",
         "Delhi",
         "10-10-2026"
     );
-
-    // ==========================================
-    // ADD SEATS
-    // ==========================================
 
     flight1.addSeat(
         Seat("1A", "Economy", 5000)
@@ -40,10 +34,6 @@ int main()
         Seat("1D", "Business", 9000)
     );
 
-    // ==========================================
-    // CREATE PASSENGER
-    // ==========================================
-
     Passenger passenger1(
         101,
         "Varsha",
@@ -51,15 +41,11 @@ int main()
         "varsha@gmail.com"
     );
 
-    Booking* booking = nullptr;
+    vector<Booking> bookings;
 
     int nextBookingId = 1001;
 
     int choice;
-
-    // ==========================================
-    // MAIN MENU
-    // ==========================================
 
     do
     {
@@ -71,9 +57,11 @@ int main()
         cout << "1. View Flight Details\n";
         cout << "2. View Seat Map\n";
         cout << "3. Book a Seat\n";
-        cout << "4. View Booking\n";
+        cout << "4. View All Bookings\n";
         cout << "5. Cancel Booking\n";
-        cout << "6. Exit\n";
+        cout << "6. View Passenger Details\n";
+        cout << "7. Test Polymorphism\n";
+        cout << "8. Exit\n";
 
         cout << "====================================\n";
 
@@ -82,10 +70,6 @@ int main()
 
         switch (choice)
         {
-        // ======================================
-        // VIEW FLIGHT
-        // ======================================
-
         case 1:
 
             cout << "\n===== FLIGHT DETAILS =====\n";
@@ -106,19 +90,11 @@ int main()
 
             break;
 
-        // ======================================
-        // VIEW SEAT MAP
-        // ======================================
-
         case 2:
 
             flight1.displaySeats();
 
             break;
-
-        // ======================================
-        // BOOK SEAT
-        // ======================================
 
         case 3:
         {
@@ -129,15 +105,21 @@ int main()
 
             try
             {
-                // Find seat
                 Seat* seat =
                     flight1.findSeat(selectedSeat);
 
-                // Calculate price before booking
                 if (seat == nullptr)
                 {
                     throw BookingException(
                         "Invalid seat number!"
+                    );
+                }
+
+                if (seat->isBooked())
+                {
+                    throw BookingException(
+                        "Seat " + selectedSeat +
+                        " is already booked!"
                     );
                 }
 
@@ -162,30 +144,23 @@ int main()
                      << dynamicPrice
                      << endl;
 
-                // Book seat
                 flight1.bookSeat(selectedSeat);
 
-                // Remove previous booking
-                if (booking != nullptr)
-                {
-                    delete booking;
-                    booking = nullptr;
-                }
-
-                // Create booking
-                booking = new Booking(
+                Booking newBooking(
                     nextBookingId,
-                    passenger1.getPassengerId(),
+                    passenger1.getUserId(),
                     flight1.getFlightNumber(),
                     seat->getSeatNumber(),
                     dynamicPrice
                 );
 
+                bookings.push_back(newBooking);
+
                 nextBookingId++;
 
                 cout << "\n===== BOOKING CONFIRMED =====\n";
 
-                booking->displayBooking();
+                newBooking.displayBooking();
             }
             catch (const BookingException& e)
             {
@@ -197,66 +172,104 @@ int main()
             break;
         }
 
-        // ======================================
-        // VIEW BOOKING
-        // ======================================
-
         case 4:
 
-            if (booking == nullptr)
+            if (bookings.empty())
             {
-                cout << "\nNo booking found.\n";
+                cout << "\nNo bookings found.\n";
             }
             else
             {
-                booking->displayBooking();
+                cout << "\n===== ALL BOOKINGS =====\n";
+
+                for (const Booking& booking : bookings)
+                {
+                    booking.displayBooking();
+                    cout << "-----------------------------\n";
+                }
             }
 
             break;
-
-        // ======================================
-        // CANCEL BOOKING
-        // ======================================
 
         case 5:
-
-            if (booking == nullptr)
+        {
+            if (bookings.empty())
             {
-                cout << "\nNo booking found.\n";
+                cout << "\nNo bookings found.\n";
+                break;
             }
-            else
+
+            int bookingId;
+
+            cout << "\nEnter booking ID to cancel: ";
+            cin >> bookingId;
+
+            bool found = false;
+
+            for (Booking& booking : bookings)
             {
-                booking->cancelBooking();
-
-                Seat* seat =
-                    flight1.findSeat(
-                        booking->getSeatNumber()
-                    );
-
-                if (seat != nullptr)
+                if (booking.getBookingId() == bookingId)
                 {
-                    seat->cancelSeat();
-                }
+                    found = true;
 
-                cout << "\nBooking cancelled successfully.\n";
+                    if (booking.getStatus() == "Cancelled")
+                    {
+                        cout << "\nBooking is already cancelled.\n";
+                        break;
+                    }
+
+                    booking.cancelBooking();
+
+                    Seat* seat =
+                        flight1.findSeat(
+                            booking.getSeatNumber()
+                        );
+
+                    if (seat != nullptr)
+                    {
+                        seat->cancelSeat();
+                    }
+
+                    cout << "\nBooking "
+                         << bookingId
+                         << " cancelled successfully.\n";
+
+                    break;
+                }
+            }
+
+            if (!found)
+            {
+                cout << "\nBooking ID not found.\n";
             }
 
             break;
-
-        // ======================================
-        // EXIT
-        // ======================================
+        }
 
         case 6:
+
+            passenger1.displayUser();
+
+            break;
+
+        case 7:
+        {
+            cout << "\n===== POLYMORPHISM TEST =====\n";
+
+            User* user = &passenger1;
+
+            user->displayRole();
+            user->displayUser();
+
+            break;
+        }
+
+        case 8:
 
             cout << "\nThank you for using "
                  << "Flight Booking System!\n";
 
             break;
-
-        // ======================================
-        // INVALID MENU OPTION
-        // ======================================
 
         default:
 
@@ -264,9 +277,7 @@ int main()
                  << "Please try again.\n";
         }
 
-    } while (choice != 6);
-
-    delete booking;
+    } while (choice != 8);
 
     return 0;
 }

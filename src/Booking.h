@@ -20,6 +20,7 @@ public:
             string seatNumber, double price);
 
     int getBookingId() const;
+    int getPassengerId() const;
     string getFlightNumber() const;
     string getSeatNumber() const;
     double getPrice() const;
@@ -27,6 +28,8 @@ public:
 
     void cancelBooking();
     void displayBooking() const;
+
+    bool operator==(const Booking& other) const;
 };
 
 #endif

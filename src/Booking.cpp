@@ -20,6 +20,11 @@ int Booking::getBookingId() const
     return bookingId;
 }
 
+int Booking::getPassengerId() const
+{
+    return passengerId;
+}
+
 string Booking::getFlightNumber() const
 {
     return flightNumber;
@@ -42,6 +47,11 @@ string Booking::getStatus() const
 
 void Booking::cancelBooking()
 {
+    if (status == "Cancelled")
+    {
+        return;
+    }
+
     status = "Cancelled";
 }
 
@@ -53,4 +63,9 @@ void Booking::displayBooking() const
     cout << "Seat: " << seatNumber << endl;
     cout << "Price: Rs." << price << endl;
     cout << "Status: " << status << endl;
+}
+
+bool Booking::operator==(const Booking& other) const
+{
+    return bookingId == other.bookingId;
 }
