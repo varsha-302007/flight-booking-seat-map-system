@@ -139,7 +139,7 @@ const [backendError, setBackendError] = useState("");
 
   try {
     const response = await fetch(
-      "http://localhost:5000/api/flights"
+      "https://skybook-api-agbx.onrender.com/api/flights"
     );
 
     if (!response.ok) {
