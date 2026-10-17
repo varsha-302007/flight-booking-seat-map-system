@@ -1,11 +1,15 @@
 const http = require("http");
-const { execFile } = require("child_process");
 const path = require("path");
+const { execFile } = require("child_process");
 
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 
 const projectRoot = path.join(__dirname, "..");
-const cppExecutable = path.join(projectRoot, "flight_api.exe");
+
+const cppExecutable = path.join(
+    projectRoot,
+    process.platform === "win32" ? "flight_api.exe" : "flight_api"
+);
 
 function sendJson(res, statusCode, data) {
     res.writeHead(statusCode, {
@@ -19,13 +23,12 @@ function sendJson(res, statusCode, data) {
 }
 
 function runCppApi(res) {
+    console.log("Executing C++ program:", cppExecutable);
+
     execFile(cppExecutable, (error, stdout, stderr) => {
         if (error) {
-            console.error("C++ execution error:");
-            console.error(error);
-
-            console.error("C++ stderr:");
-            console.error(stderr);
+            console.error("C++ execution error:", error);
+            console.error("C++ stderr:", stderr);
 
             sendJson(res, 500, {
                 success: false,
@@ -38,11 +41,9 @@ function runCppApi(res) {
 
         try {
             const result = JSON.parse(stdout);
-
             sendJson(res, 200, result);
         } catch (parseError) {
-            console.error("Invalid JSON returned by C++:");
-            console.error(stdout);
+            console.error("Invalid JSON returned by C++:", stdout);
 
             sendJson(res, 500, {
                 success: false,
@@ -54,25 +55,23 @@ function runCppApi(res) {
 }
 
 const server = http.createServer((req, res) => {
-    // CORS preflight
+    // DEBUG: Display every incoming request
+    console.log("Request received:", req.method, req.url);
+
+    // Handle CORS preflight requests
     if (req.method === "OPTIONS") {
         res.writeHead(204, {
             "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods":
-                "GET, POST, PUT, DELETE, OPTIONS",
-            "Access-Control-Allow-Headers":
-                "Content-Type",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
         });
 
         res.end();
         return;
     }
 
-    // Test endpoint
-    if (
-        req.method === "GET" &&
-        req.url === "/api/test"
-    ) {
+    // Health-check endpoint
+    if (req.method === "GET" && new URL(req.url, `http://${req.headers.host}`).pathname === "/api/test") {
         sendJson(res, 200, {
             success: true,
             message: "Node API bridge is working!",
@@ -81,33 +80,37 @@ const server = http.createServer((req, res) => {
         return;
     }
 
-    // Real C++ endpoint
-    if (
-        req.method === "GET" &&
-        req.url === "/api/flights"
-    ) {
-        console.log("GET /api/flights");
+    // Flight endpoint
+    // Flight endpoint
+if (
+    req.method === "GET" &&
+    new URL(req.url, `http://${req.headers.host}`).pathname === "/api/flights"
+) {
+    console.log("Flight endpoint matched!");
+    runCppApi(res);
+    return;
+}
 
-        runCppApi(res);
+    // Unknown endpoint
+    console.log("Unknown endpoint:", req.method, req.url);
 
-        return;
-    }
-
-    // Endpoint not found
     sendJson(res, 404, {
         success: false,
         message: "Endpoint not found",
+        requestedUrl: req.url,
+        requestedMethod: req.method,
     });
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, "0.0.0.0", () => {
     console.log("====================================");
     console.log("       SKYBOOK API BRIDGE");
     console.log("====================================");
-    console.log(`Server running at http://localhost:${PORT}`);
+    console.log(`Server listening on port ${PORT}`);
+    console.log(`C++ executable: ${cppExecutable}`);
     console.log("");
     console.log("Available endpoints:");
-    console.log("GET /api/test");
-    console.log("GET /api/flights");
+    console.log(`GET http://localhost:${PORT}/api/test`);
+    console.log(`GET http://localhost:${PORT}/api/flights`);
     console.log("====================================");
 });
