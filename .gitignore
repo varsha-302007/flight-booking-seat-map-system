@@ -3,3 +3,14 @@
 *.out
 *.o
 build/
+# Node.js dependencies
+node_modules/
+frontend/node_modules/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Frontend build output
+frontend/dist/
