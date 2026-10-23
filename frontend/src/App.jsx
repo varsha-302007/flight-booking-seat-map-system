@@ -373,46 +373,67 @@ const fetchBookingsFromBackend = async () => {
   /* BOOKING */
   /* ================================================== */
 
-  const confirmBooking = () => {
-    if (!selectedFlight || !selectedSeat) {
-      return;
+  const confirmBooking = async () => {
+  if (!selectedFlight || !selectedSeat) {
+    return;
+  }
+
+  if (
+    !passengerDetails.name.trim() ||
+    !passengerDetails.phone.trim() ||
+    !passengerDetails.email.trim()
+  ) {
+    alert("Please fill in all passenger details.");
+    return;
+  }
+
+  if (passengerDetails.phone.length < 10) {
+    alert("Please enter a valid phone number.");
+    return;
+  }
+
+  if (!passengerDetails.email.includes("@")) {
+    alert("Please enter a valid email address.");
+    return;
+  }
+
+  if (getBookedSeats().includes(selectedSeat)) {
+    alert("This seat is already booked. Please choose another.");
+    setSelectedSeat(null);
+    setPage("seatmap");
+    return;
+  }
+
+  const numericBookingId =
+    1000000000 + Math.floor(Math.random() * 900000000);
+
+  const finalPrice = getSeatPrice(selectedSeat);
+
+  const requestBody = {
+    bookingId: numericBookingId,
+    passengerId: 101,
+    flightNumber: selectedFlight.flightNumber,
+    seatNumber: selectedSeat,
+  };
+
+  try {
+    const response = await fetch(`${API_URL}/bookings`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "Booking failed.");
     }
-
-    if (
-      !passengerDetails.name.trim() ||
-      !passengerDetails.phone.trim() ||
-      !passengerDetails.email.trim()
-    ) {
-      alert("Please fill in all passenger details.");
-      return;
-    }
-
-    if (passengerDetails.phone.length < 10) {
-      alert("Please enter a valid phone number.");
-      return;
-    }
-
-    if (!passengerDetails.email.includes("@")) {
-      alert("Please enter a valid email address.");
-      return;
-    }
-
-    const bookedSeats = getBookedSeats();
-
-    if (bookedSeats.includes(selectedSeat)) {
-      alert(
-        "Sorry, this seat was just booked. Please choose another seat."
-      );
-
-      setSelectedSeat(null);
-      setPage("seatmap");
-      return;
-    }
-
-    const finalPrice = getSeatPrice(selectedSeat);
 
     const newBooking = {
-      bookingId: `SB${1001 + bookings.length}`,
+      bookingId: `SB${numericBookingId}`,
+      backendBookingId: numericBookingId,
       passengerName: passengerDetails.name,
       passengerPhone: passengerDetails.phone,
       passengerEmail: passengerDetails.email,
@@ -423,17 +444,13 @@ const fetchBookingsFromBackend = async () => {
       to: selectedFlight.to,
       date: date,
       seat: selectedSeat,
+      seatNumber: selectedSeat,
       seatClass: getSeatClass(selectedSeat),
       price: finalPrice,
       status: "Confirmed",
     };
 
-    setBookings((currentBookings) => [
-      ...currentBookings,
-      newBooking,
-    ]);
-
-    /* Add the seat to booked seats */
+    setBookings((current) => [...current, newBooking]);
 
     setBookedSeatsByFlight((current) => ({
       ...current,
@@ -443,36 +460,17 @@ const fetchBookingsFromBackend = async () => {
       ],
     }));
 
-    /* Reduce available seats */
-
-    setAdminFlights((currentFlights) =>
-      currentFlights.map((flight) =>
-        flight.id === selectedFlight.id
-          ? {
-              ...flight,
-              seats: Math.max(
-                0,
-                flight.seats - 1
-              ),
-            }
-          : flight
-      )
-    );
-
-    const updatedFlight = {
-      ...selectedFlight,
-      seats: Math.max(
-        0,
-        selectedFlight.seats - 1
-      ),
-    };
-
-    setSelectedFlight(updatedFlight);
-
     setLastBooking(newBooking);
     setBookingSuccess(true);
     setPage("confirmation");
-  };
+
+    // Refresh the seat map from the backend.
+    await fetchFlightsFromBackend();
+  } catch (error) {
+    console.error("Booking error:", error);
+    alert(error.message || "Unable to save booking. Please try again.");
+  }
+};
 
   /* ================================================== */
   /* CANCEL BOOKING */
