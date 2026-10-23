@@ -39,7 +39,10 @@ void Flight::addSeat(Seat seat)
 {
     seats.push_back(seat);
 }
-
+const vector<Seat>& Flight::getSeats() const
+{
+    return seats;
+}
 Seat* Flight::findSeat(string seatNumber)
 {
     for (Seat& seat : seats)
