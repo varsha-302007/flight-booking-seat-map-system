@@ -475,55 +475,54 @@ const fetchBookingsFromBackend = async () => {
   /* ================================================== */
   /* CANCEL BOOKING */
   /* ================================================== */
+const cancelBooking = async (bookingId) => {
+  const booking = bookings.find(
+    (item) => item.bookingId === bookingId
+  );
 
-  const cancelBooking = (bookingId) => {
-    const booking = bookings.find(
-      (item) => item.bookingId === bookingId
+  if (!booking || booking.status === "Cancelled") {
+    return;
+  }
+
+  const backendId =
+    booking.backendBookingId ||
+    Number(String(booking.bookingId).replace(/\D/g, ""));
+
+  try {
+    const response = await fetch(
+      `${API_URL}/bookings/${backendId}`,
+      {
+        method: "DELETE",
+      }
     );
 
-    if (!booking || booking.status === "Cancelled") {
-      return;
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "Cancellation failed.");
     }
 
-    setBookings((currentBookings) =>
-      currentBookings.map((item) =>
+    setBookings((current) =>
+      current.map((item) =>
         item.bookingId === bookingId
-          ? {
-              ...item,
-              status: "Cancelled",
-            }
+          ? { ...item, status: "Cancelled" }
           : item
       )
     );
-
-    /* Make the seat available again */
 
     setBookedSeatsByFlight((current) => ({
       ...current,
       [booking.flightNumber]: (
         current[booking.flightNumber] || []
-      ).filter(
-        (seat) => seat !== booking.seat
-      ),
+      ).filter((seat) => seat !== booking.seat),
     }));
 
-    /* Increase available seats */
-
-    setAdminFlights((currentFlights) =>
-      currentFlights.map((flight) =>
-        flight.flightNumber ===
-        booking.flightNumber
-          ? {
-              ...flight,
-              seats: Math.min(
-                flight.totalSeats,
-                flight.seats + 1
-              ),
-            }
-          : flight
-      )
-    );
-  };
+    await fetchFlightsFromBackend();
+  } catch (error) {
+    console.error("Cancellation error:", error);
+    alert(error.message || "Unable to cancel booking.");
+  }
+};
 
   /* ================================================== */
   /* ADMIN */
