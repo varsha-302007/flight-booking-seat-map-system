@@ -401,8 +401,9 @@ const getSeatClass = (seatNumber) => {
   /* BOOKING */
   /* ================================================== */
 
-  const confirmBooking = async () => {
+ const confirmBooking = async () => {
   if (!selectedFlight || !selectedSeat) {
+    alert("Please select a flight and seat.");
     return;
   }
 
@@ -415,7 +416,7 @@ const getSeatClass = (seatNumber) => {
     return;
   }
 
-  if (passengerDetails.phone.length < 10) {
+  if (passengerDetails.phone.trim().length < 10) {
     alert("Please enter a valid phone number.");
     return;
   }
@@ -425,7 +426,11 @@ const getSeatClass = (seatNumber) => {
     return;
   }
 
-  if (getBookedSeats().includes(selectedSeat)) {
+  const alreadyBooked = getBookedSeats().some(
+    (seat) => String(seat) === String(selectedSeat)
+  );
+
+  if (alreadyBooked) {
     alert("This seat is already booked. Please choose another.");
     setSelectedSeat(null);
     setPage("seatmap");
@@ -470,7 +475,7 @@ const getSeatClass = (seatNumber) => {
       airline: selectedFlight.airline,
       from: selectedFlight.from,
       to: selectedFlight.to,
-      date: date,
+      date: selectedFlight.date || date,
       seat: selectedSeat,
       seatNumber: selectedSeat,
       seatClass: getSeatClass(selectedSeat),
@@ -492,20 +497,19 @@ const getSeatClass = (seatNumber) => {
     setBookingSuccess(true);
     setPage("confirmation");
 
-    // Refresh the seat map from the backend.
-    await fetchFlightsFromBackend();
+    // Refresh flights and bookings from the backend.
+    const flights = await fetchFlightsFromBackend();
+    await fetchBookingsFromBackend(flights);
   } catch (error) {
     console.error("Booking error:", error);
     alert(error.message || "Unable to save booking. Please try again.");
   }
 };
 
-  /* ================================================== */
-  /* CANCEL BOOKING */
-  /* ================================================== */
+
 const cancelBooking = async (bookingId) => {
   const booking = bookings.find(
-    (item) => item.bookingId === bookingId
+    (item) => String(item.bookingId) === String(bookingId)
   );
 
   if (!booking || booking.status === "Cancelled") {
@@ -513,8 +517,13 @@ const cancelBooking = async (bookingId) => {
   }
 
   const backendId =
-    booking.backendBookingId ||
+    booking.backendBookingId ??
     Number(String(booking.bookingId).replace(/\D/g, ""));
+
+  if (!backendId || Number.isNaN(Number(backendId))) {
+    alert("Unable to find the booking ID for cancellation.");
+    return;
+  }
 
   try {
     const response = await fetch(
@@ -532,7 +541,7 @@ const cancelBooking = async (bookingId) => {
 
     setBookings((current) =>
       current.map((item) =>
-        item.bookingId === bookingId
+        String(item.bookingId) === String(bookingId)
           ? { ...item, status: "Cancelled" }
           : item
       )
@@ -542,10 +551,16 @@ const cancelBooking = async (bookingId) => {
       ...current,
       [booking.flightNumber]: (
         current[booking.flightNumber] || []
-      ).filter((seat) => seat !== booking.seat),
+      ).filter(
+        (seat) => String(seat) !== String(booking.seatNumber || booking.seat)
+      ),
     }));
 
-    await fetchFlightsFromBackend();
+    // Refresh flights and bookings from the backend.
+    const flights = await fetchFlightsFromBackend();
+    await fetchBookingsFromBackend(flights);
+
+    alert("Booking cancelled successfully!");
   } catch (error) {
     console.error("Cancellation error:", error);
     alert(error.message || "Unable to cancel booking.");
