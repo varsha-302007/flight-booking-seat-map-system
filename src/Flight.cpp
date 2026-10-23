@@ -52,7 +52,10 @@ Seat* Flight::findSeat(string seatNumber)
 
     return nullptr;
 }
-
+vector<Seat>& Flight::getSeats()
+{
+    return seats;
+}
 // ==========================================
 // BOOK SEAT WITH EXCEPTION HANDLING
 // ==========================================
