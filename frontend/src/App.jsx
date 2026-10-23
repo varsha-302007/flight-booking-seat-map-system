@@ -178,6 +178,61 @@ const [backendError, setBackendError] = useState("");
     setBackendLoading(false);
   }
 };
+  const API_URL = "https://skybook-api-agbx.onrender.com/api";
+
+const fetchBookingsFromBackend = async () => {
+  try {
+    const response = await fetch(`${API_URL}/bookings`);
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.message || "Failed to load bookings");
+    }
+
+    const savedBookings = (data.bookings || []).map((booking) => {
+      const flight = backendFlights.find(
+        (f) => f.flightNumber === booking.flightNumber
+      );
+
+      return {
+        ...booking,
+        bookingId: `SB${booking.bookingId}`,
+        backendBookingId: booking.bookingId,
+        passengerName: `Passenger ${booking.passengerId}`,
+        passengerPhone: "",
+        passengerEmail: "",
+        seat: booking.seatNumber,
+        date: flight?.date || date,
+        airline: flight?.airline || "Flight Operator",
+        from: flight?.from || "",
+        to: flight?.to || "",
+      };
+    });
+
+    setBookings(savedBookings);
+
+    const bookedSeats = {};
+
+    (data.bookings || []).forEach((booking) => {
+      if (booking.status === "Confirmed") {
+        if (!bookedSeats[booking.flightNumber]) {
+          bookedSeats[booking.flightNumber] = [];
+        }
+
+        bookedSeats[booking.flightNumber].push(
+          booking.seatNumber
+        );
+      }
+    });
+
+    setBookedSeatsByFlight((current) => ({
+      ...current,
+      ...bookedSeats,
+    }));
+  } catch (error) {
+    console.error("Unable to load bookings:", error);
+  }
+};
   const getBookedSeats = () => {
     if (!selectedFlight) {
       return [];
