@@ -27,6 +27,7 @@ public:
     void addSeat(Seat seat);
 
     Seat* findSeat(string seatNumber);
+    vector<Seat>& getSeats();
 
     void bookSeat(string seatNumber);
 
