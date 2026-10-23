@@ -51,7 +51,30 @@ int main()
 
     vector<Flight> flights = fileManager.loadFlights();
     vector<Booking> bookings = fileManager.loadBookings();
+    // Restore booked seats from saved bookings.
+    for (Flight& flight : flights)
+    {
+        for (const Booking& booking : bookings)
+        {
+            if (booking.getStatus() != "Confirmed")
+            {
+                continue;
+            }
 
+            if (booking.getFlightNumber() != flight.getFlightNumber())
+            {
+                continue;
+            }
+
+        Seat* seat = flight.findSeat(booking.getSeatNumber());
+
+        if (seat != nullptr && !seat->isBooked())
+        {
+            seat->bookSeat();
+        }
+    }
+}
+    
     // Provide a sample flight if no flight data exists.
     if (flights.empty())
     {
