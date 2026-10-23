@@ -133,19 +133,17 @@ const [backendError, setBackendError] = useState("");
   /* ================================================== */
   /* FLIGHT / SEAT HELPERS */
   /* ================================================== */
-  const fetchFlightsFromBackend = async () => {
+  const API_URL = "https://skybook-api-agbx.onrender.com/api";
+
+const fetchFlightsFromBackend = async () => {
   setBackendLoading(true);
   setBackendError("");
 
   try {
-    const response = await fetch(
-      "https://skybook-api-agbx.onrender.com/api/flights"
-    );
+    const response = await fetch(`${API_URL}/flights`);
 
     if (!response.ok) {
-      throw new Error(
-        "Failed to connect to backend."
-      );
+      throw new Error("Failed to connect to backend.");
     }
 
     const data = await response.json();
@@ -165,33 +163,40 @@ const [backendError, setBackendError] = useState("");
     }));
 
     setBackendFlights(flights);
+
+    // Return flights so booking details can use them.
+    return flights;
   } catch (error) {
-    console.error(
-      "Backend connection error:",
-      error
-    );
+    console.error("Backend connection error:", error);
 
     setBackendError(
       "Unable to connect to the C++ backend."
     );
+
+    return [];
   } finally {
     setBackendLoading(false);
   }
 };
-  const API_URL = "https://skybook-api-agbx.onrender.com/api";
 
-const fetchBookingsFromBackend = async () => {
+
+// Fetch existing bookings from the backend.
+const fetchBookingsFromBackend = async (flights = backendFlights) => {
   try {
     const response = await fetch(`${API_URL}/bookings`);
     const data = await response.json();
 
     if (!response.ok || !data.success) {
-      throw new Error(data.message || "Failed to load bookings");
+      throw new Error(
+        data.message || "Failed to load bookings"
+      );
     }
 
     const savedBookings = (data.bookings || []).map((booking) => {
-      const flight = backendFlights.find(
-        (f) => f.flightNumber === booking.flightNumber
+      const flight = flights.find(
+        (f) =>
+          String(f.flightNumber) ===
+          String(booking.flightNumber)
       );
 
       return {
@@ -211,15 +216,18 @@ const fetchBookingsFromBackend = async () => {
 
     setBookings(savedBookings);
 
+    // Build the list of occupied seats for each flight.
     const bookedSeats = {};
 
     (data.bookings || []).forEach((booking) => {
       if (booking.status === "Confirmed") {
-        if (!bookedSeats[booking.flightNumber]) {
-          bookedSeats[booking.flightNumber] = [];
+        const flightNumber = booking.flightNumber;
+
+        if (!bookedSeats[flightNumber]) {
+          bookedSeats[flightNumber] = [];
         }
 
-        bookedSeats[booking.flightNumber].push(
+        bookedSeats[flightNumber].push(
           booking.seatNumber
         );
       }
@@ -233,78 +241,98 @@ const fetchBookingsFromBackend = async () => {
     console.error("Unable to load bookings:", error);
   }
 };
-  const getBookedSeats = () => {
-    if (!selectedFlight) {
-      return [];
-    }
 
-    return (
-      bookedSeatsByFlight[selectedFlight.flightNumber] || []
-    );
+
+// Load flights first, then bookings.
+useEffect(() => {
+  const loadData = async () => {
+    const flights = await fetchFlightsFromBackend();
+    await fetchBookingsFromBackend(flights);
   };
 
-  const getOccupancyPercentage = (flight) => {
-    if (!flight || flight.totalSeats === 0) {
-      return 0;
-    }
+  loadData();
+}, []);
 
-    const booked =
-      flight.totalSeats - flight.seats;
 
-    return Math.round(
-      (booked / flight.totalSeats) * 100
-    );
-  };
+// Get occupied seats for the selected flight.
+const getBookedSeats = () => {
+  if (!selectedFlight) {
+    return [];
+  }
 
-  const getDynamicBasePrice = (flight) => {
-    if (!flight) {
-      return 0;
-    }
+  return (
+    bookedSeatsByFlight[selectedFlight.flightNumber] || []
+  );
+};
 
-    const occupancy = getOccupancyPercentage(flight);
 
-    if (occupancy <= 25) {
-      return flight.price;
-    }
+// Calculate flight occupancy percentage.
+const getOccupancyPercentage = (flight) => {
+  if (!flight || flight.totalSeats === 0) {
+    return 0;
+  }
 
-    if (occupancy <= 50) {
-      return Math.round(flight.price * 1.1);
-    }
+  const booked = flight.totalSeats - flight.seats;
 
-    if (occupancy <= 75) {
-      return Math.round(flight.price * 1.2);
-    }
+  return Math.round(
+    (booked / flight.totalSeats) * 100
+  );
+};
 
-    return Math.round(flight.price * 1.3);
-  };
 
-  const getSeatPrice = (seatNumber) => {
-    if (!selectedFlight) {
-      return 0;
-    }
+// Calculate the base price based on occupancy.
+const getDynamicBasePrice = (flight) => {
+  if (!flight) {
+    return 0;
+  }
 
-    const dynamicBasePrice =
-      getDynamicBasePrice(selectedFlight);
+  const occupancy = getOccupancyPercentage(flight);
 
-    const row = parseInt(seatNumber);
+  if (occupancy <= 25) {
+    return flight.price;
+  }
 
-    if (row <= 6) {
-      return dynamicBasePrice;
-    }
+  if (occupancy <= 50) {
+    return Math.round(flight.price * 1.1);
+  }
 
-    return dynamicBasePrice + 4000;
-  };
+  if (occupancy <= 75) {
+    return Math.round(flight.price * 1.2);
+  }
 
-  const getSeatClass = (seatNumber) => {
-    const row = parseInt(seatNumber);
+  return Math.round(flight.price * 1.3);
+};
 
-    if (row <= 6) {
-      return "Economy";
-    }
 
-    return "Business";
-  };
+// Calculate the price for a selected seat.
+const getSeatPrice = (seatNumber) => {
+  if (!selectedFlight) {
+    return 0;
+  }
 
+  const dynamicBasePrice =
+    getDynamicBasePrice(selectedFlight);
+
+  const row = parseInt(seatNumber, 10);
+
+  if (row <= 6) {
+    return dynamicBasePrice;
+  }
+
+  return dynamicBasePrice + 4000;
+};
+
+
+// Determine the class of a selected seat.
+const getSeatClass = (seatNumber) => {
+  const row = parseInt(seatNumber, 10);
+
+  if (row <= 6) {
+    return "Economy";
+  }
+
+  return "Business";
+};
   /* ================================================== */
   /* SEARCH */
   /* ================================================== */
