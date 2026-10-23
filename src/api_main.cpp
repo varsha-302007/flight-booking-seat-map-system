@@ -50,6 +50,7 @@ int main()
     FileManager fileManager;
 
     vector<Flight> flights = fileManager.loadFlights();
+    vector<Booking> bookings = fileManager.loadBookings();
 
     // Provide a sample flight if no flight data exists.
     if (flights.empty())
