@@ -22,77 +22,146 @@ function sendJson(res, statusCode, data) {
     res.end(JSON.stringify(data));
 }
 
-function runCppApi(res) {
-    console.log("Executing C++ program:", cppExecutable);
+function runCppApi(res, args = []) {
+    execFile(
+        cppExecutable,
+        args,
+        { timeout: 10000, maxBuffer: 1024 * 1024 },
+        (error, stdout, stderr) => {
+            if (error) {
+                console.error("C++ execution error:", error.message);
+                console.error("C++ stderr:", stderr);
 
-    execFile(cppExecutable, (error, stdout, stderr) => {
-        if (error) {
-            console.error("C++ execution error:", error);
-            console.error("C++ stderr:", stderr);
+                sendJson(res, 500, {
+                    success: false,
+                    message: "C++ backend failed.",
+                });
+                return;
+            }
 
-            sendJson(res, 500, {
-                success: false,
-                message: "C++ backend failed.",
-                error: error.message,
-            });
+            try {
+                sendJson(res, 200, JSON.parse(stdout));
+            } catch (parseError) {
+                console.error("Invalid C++ JSON:", stdout);
 
-            return;
+                sendJson(res, 500, {
+                    success: false,
+                    message: "C++ returned invalid JSON.",
+                });
+            }
         }
+    );
+}
 
-        try {
-            const result = JSON.parse(stdout);
-            sendJson(res, 200, result);
-        } catch (parseError) {
-            console.error("Invalid JSON returned by C++:", stdout);
+function readBody(req) {
+    return new Promise((resolve, reject) => {
+        let body = "";
 
-            sendJson(res, 500, {
-                success: false,
-                message: "C++ returned invalid JSON.",
-                output: stdout,
-            });
-        }
+        req.on("data", chunk => {
+            body += chunk;
+
+            if (body.length > 100000) {
+                reject(new Error("Request body too large"));
+                req.destroy();
+            }
+        });
+
+        req.on("end", () => {
+            try {
+                resolve(body ? JSON.parse(body) : {});
+            } catch {
+                reject(new Error("Invalid JSON body"));
+            }
+        });
+
+        req.on("error", reject);
     });
 }
 
-const server = http.createServer((req, res) => {
-    // DEBUG: Display every incoming request
-    console.log("Request received:", req.method, req.url);
+const server = http.createServer(async (req, res) => {
+    console.log("Request:", req.method, req.url);
 
-    // Handle CORS preflight requests
     if (req.method === "OPTIONS") {
         res.writeHead(204, {
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type",
         });
-
         res.end();
         return;
     }
 
-    // Health-check endpoint
-    if (req.method === "GET" && new URL(req.url, `http://${req.headers.host}`).pathname === "/api/test") {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const pathname = url.pathname;
+
+    if (req.method === "GET" && pathname === "/api/test") {
         sendJson(res, 200, {
             success: true,
             message: "Node API bridge is working!",
         });
+        return;
+    }
+
+    if (req.method === "GET" && pathname === "/api/flights") {
+        runCppApi(res);
+        return;
+    }
+
+    if (req.method === "GET" && pathname === "/api/bookings") {
+        runCppApi(res, ["--action", "bookings"]);
+        return;
+    }
+
+    if (req.method === "POST" && pathname === "/api/bookings") {
+        try {
+            const body = await readBody(req);
+
+            const flightNumber = String(body.flightNumber || "");
+            const seatNumber = String(body.seatNumber || "");
+            const passengerId = Number(body.passengerId);
+            const bookingId = Number(body.bookingId);
+
+            if (
+                !/^[A-Za-z0-9-]{1,20}$/.test(flightNumber) ||
+                !/^[A-Za-z0-9-]{1,10}$/.test(seatNumber) ||
+                !Number.isSafeInteger(passengerId) ||
+                passengerId <= 0 ||
+                !Number.isSafeInteger(bookingId) ||
+                bookingId <= 0
+            ) {
+                sendJson(res, 400, {
+                    success: false,
+                    message: "Invalid booking details.",
+                });
+                return;
+            }
+
+            runCppApi(res, [
+                "--action", "book",
+                "--flight", flightNumber,
+                "--seat", seatNumber,
+                "--passenger", String(passengerId),
+                "--id", String(bookingId),
+            ]);
+        } catch (error) {
+            sendJson(res, 400, {
+                success: false,
+                message: error.message,
+            });
+        }
 
         return;
     }
 
-    // Flight endpoint
-    // Flight endpoint
-if (
-    req.method === "GET" &&
-    new URL(req.url, `http://${req.headers.host}`).pathname === "/api/flights"
-) {
-    console.log("Flight endpoint matched!");
-    runCppApi(res);
-    return;
-}
+    const cancelMatch = pathname.match(/^\/api\/bookings\/(\d+)$/);
 
-    // Unknown endpoint
-    console.log("Unknown endpoint:", req.method, req.url);
+    if (req.method === "DELETE" && cancelMatch) {
+        runCppApi(res, [
+            "--action", "cancel",
+            "--id", cancelMatch[1],
+        ]);
+        return;
+    }
 
     sendJson(res, 404, {
         success: false,
@@ -103,14 +172,6 @@ if (
 });
 
 server.listen(PORT, "0.0.0.0", () => {
-    console.log("====================================");
-    console.log("       SKYBOOK API BRIDGE");
-    console.log("====================================");
-    console.log(`Server listening on port ${PORT}`);
-    console.log(`C++ executable: ${cppExecutable}`);
-    console.log("");
-    console.log("Available endpoints:");
-    console.log(`GET http://localhost:${PORT}/api/test`);
-    console.log(`GET http://localhost:${PORT}/api/flights`);
-    console.log("====================================");
+    console.log("SkyBook API listening on port", PORT);
+    console.log("C++ executable:", cppExecutable);
 });
