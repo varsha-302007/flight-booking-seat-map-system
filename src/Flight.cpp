@@ -59,10 +59,7 @@ vector<Seat>& Flight::getSeats()
 {
     return seats;
 }
-const vector<Seat>& Flight::getSeats() const
-{
-    return seats;
-}
+
 // ==========================================
 // BOOK SEAT WITH EXCEPTION HANDLING
 // ==========================================
