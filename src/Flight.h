@@ -28,6 +28,7 @@ public:
 
     Seat* findSeat(string seatNumber);
     vector<Seat>& getSeats();
+    const vector<Seat>& getSeats() const;
 
     void bookSeat(string seatNumber);
 
