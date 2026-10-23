@@ -9,6 +9,7 @@
 #include "Flight.h"
 #include "Booking.h"
 #include "FileManager.h"
+#include "Seat.h"
 
 using namespace std;
 
@@ -20,12 +21,12 @@ string escapeJson(const string& value)
     {
         switch (c)
         {
-            case '"': result += "\\\""; break;
+            case '"':  result += "\\\""; break;
             case '\\': result += "\\\\"; break;
             case '\n': result += "\\n"; break;
             case '\r': result += "\\r"; break;
             case '\t': result += "\\t"; break;
-            default: result += c;
+            default:   result += c;
         }
     }
 
@@ -35,8 +36,10 @@ string escapeJson(const string& value)
 string getArg(int argc, char* argv[], const string& key)
 {
     for (int i = 1; i + 1 < argc; i++)
-        if (argv[i] == key)
+    {
+        if (string(argv[i]) == key)
             return argv[i + 1];
+    }
 
     return "";
 }
@@ -45,14 +48,47 @@ int getIntArg(int argc, char* argv[], const string& key)
 {
     string value = getArg(argc, argv, key);
 
-    try { return stoi(value); }
-    catch (...) { return 0; }
+    try
+    {
+        return stoi(value);
+    }
+    catch (...)
+    {
+        return 0;
+    }
 }
 
 void printError(const string& message)
 {
     cout << "{\"success\":false,\"message\":\""
          << escapeJson(message) << "\"}";
+}
+
+void addDefaultSeats(Flight& flight)
+{
+    // Create the default seat map only when the flight has no seats.
+    if (!flight.getSeats().empty())
+        return;
+
+    for (int row = 1; row <= 6; row++)
+    {
+        for (char col = 'A'; col <= 'D'; col++)
+        {
+            flight.addSeat(
+                Seat(to_string(row) + col, "Economy", 5000)
+            );
+        }
+    }
+
+    for (int row = 7; row <= 8; row++)
+    {
+        for (char col = 'A'; col <= 'D'; col++)
+        {
+            flight.addSeat(
+                Seat(to_string(row) + col, "Business", 9000)
+            );
+        }
+    }
 }
 
 int main(int argc, char* argv[])
@@ -62,45 +98,43 @@ int main(int argc, char* argv[])
     vector<Flight> flights = fm.loadFlights();
     vector<Booking> bookings = fm.loadBookings();
 
-    // Create the demonstration flight if no flight data exists.
+    // Create a sample flight if no flight data exists.
     if (flights.empty())
     {
-        Flight f("AI101", "Chennai", "Delhi", "10-10-2026");
-
-        for (int row = 1; row <= 6; row++)
-        {
-            for (char col = 'A'; col <= 'D'; col++)
-                f.addSeat(Seat(to_string(row) + col, "Economy", 5000));
-        }
-
-        for (int row = 7; row <= 8; row++)
-        {
-            for (char col = 'A'; col <= 'D'; col++)
-                f.addSeat(Seat(to_string(row) + col, "Business", 9000));
-        }
-
-        flights.push_back(f);
-        fm.saveFlights(flights);
+        flights.emplace_back(
+            "AI101", "Chennai", "Delhi", "10-10-2026"
+        );
     }
 
-    // Restore confirmed bookings to the in-memory seat maps.
+    // Ensure every loaded flight has seats.
+    for (Flight& flight : flights)
+    {
+        addDefaultSeats(flight);
+    }
+
+    // Restore confirmed bookings to the seat maps.
     for (Flight& flight : flights)
     {
         for (const Booking& booking : bookings)
         {
             if (booking.getStatus() != "Confirmed" ||
                 booking.getFlightNumber() != flight.getFlightNumber())
+            {
                 continue;
+            }
 
             Seat* seat = flight.findSeat(booking.getSeatNumber());
 
             if (seat != nullptr && !seat->isBooked())
+            {
                 seat->bookSeat();
+            }
         }
     }
 
     string action = getArg(argc, argv, "--action");
 
+    // BOOK A SEAT
     if (action == "book")
     {
         string flightNumber = getArg(argc, argv, "--flight");
@@ -111,27 +145,34 @@ int main(int argc, char* argv[])
         Flight* selected = nullptr;
 
         for (Flight& flight : flights)
+        {
             if (flight.getFlightNumber() == flightNumber)
+            {
                 selected = &flight;
+                break;
+            }
+        }
 
-        if (selected == nullptr || seatNumber.empty() ||
-            passengerId <= 0 || bookingId <= 0)
+        if (selected == nullptr ||
+            seatNumber.empty() ||
+            passengerId <= 0 ||
+            bookingId <= 0)
         {
             printError("Invalid flight, seat, passenger, or booking ID.");
             return 0;
         }
 
-        for (const Booking& b : bookings)
+        for (const Booking& booking : bookings)
         {
-            if (b.getBookingId() == bookingId)
+            if (booking.getBookingId() == bookingId)
             {
                 printError("Booking ID already exists.");
                 return 0;
             }
 
-            if (b.getFlightNumber() == flightNumber &&
-                b.getSeatNumber() == seatNumber &&
-                b.getStatus() == "Confirmed")
+            if (booking.getFlightNumber() == flightNumber &&
+                booking.getSeatNumber() == seatNumber &&
+                booking.getStatus() == "Confirmed")
             {
                 printError("Seat is already booked.");
                 return 0;
@@ -163,16 +204,21 @@ int main(int argc, char* argv[])
         );
 
         bookings.push_back(booking);
+
         fm.saveBookings(bookings);
 
-        cout << "{\"success\":true,\"message\":\"Booking saved\","
+        cout << "{\"success\":true,"
+             << "\"message\":\"Booking saved\","
              << "\"bookingId\":" << bookingId << ","
-             << "\"flightNumber\":\"" << escapeJson(flightNumber) << "\","
-             << "\"seatNumber\":\"" << escapeJson(seatNumber) << "\"}";
+             << "\"flightNumber\":\""
+             << escapeJson(flightNumber) << "\","
+             << "\"seatNumber\":\""
+             << escapeJson(seatNumber) << "\"}";
 
         return 0;
     }
 
+    // CANCEL A BOOKING
     if (action == "cancel")
     {
         int bookingId = getIntArg(argc, argv, "--id");
@@ -183,9 +229,12 @@ int main(int argc, char* argv[])
                 booking.getStatus() == "Confirmed")
             {
                 booking.cancelBooking();
+
                 fm.saveBookings(bookings);
 
-                cout << "{\"success\":true,\"message\":\"Booking cancelled\"}";
+                cout << "{\"success\":true,"
+                     << "\"message\":\"Booking cancelled\"}";
+
                 return 0;
             }
         }
@@ -194,32 +243,35 @@ int main(int argc, char* argv[])
         return 0;
     }
 
+    // GET ALL BOOKINGS
     if (action == "bookings")
     {
         cout << "{\"success\":true,\"bookings\":[";
 
         for (size_t i = 0; i < bookings.size(); i++)
         {
-            const Booking& b = bookings[i];
+            const Booking& booking = bookings[i];
 
-            if (i) cout << ",";
+            if (i > 0)
+                cout << ",";
 
-            cout << "{\"bookingId\":" << b.getBookingId()
-                 << ",\"passengerId\":" << b.getPassengerId()
+            cout << "{\"bookingId\":" << booking.getBookingId()
+                 << ",\"passengerId\":" << booking.getPassengerId()
                  << ",\"flightNumber\":\""
-                 << escapeJson(b.getFlightNumber()) << "\""
+                 << escapeJson(booking.getFlightNumber()) << "\""
                  << ",\"seatNumber\":\""
-                 << escapeJson(b.getSeatNumber()) << "\""
-                 << ",\"price\":" << b.getPrice()
+                 << escapeJson(booking.getSeatNumber()) << "\""
+                 << ",\"price\":" << booking.getPrice()
                  << ",\"status\":\""
-                 << escapeJson(b.getStatus()) << "\"}";
+                 << escapeJson(booking.getStatus()) << "\"}";
         }
 
         cout << "]}";
+
         return 0;
     }
 
-    // Default action: return flights and their actual seat maps.
+    // GET FLIGHTS AND SEAT MAPS
     cout << fixed << setprecision(2);
     cout << "{\"success\":true,\"flights\":[";
 
@@ -227,14 +279,18 @@ int main(int argc, char* argv[])
     {
         const Flight& flight = flights[i];
 
-        if (i) cout << ",";
+        if (i > 0)
+            cout << ",";
 
         const vector<Seat>& seats = flight.getSeats();
 
         int booked = 0;
 
         for (const Seat& seat : seats)
-            if (seat.isBooked()) booked++;
+        {
+            if (seat.isBooked())
+                booked++;
+        }
 
         cout << "{\"id\":" << i + 1
              << ",\"flightNumber\":\""
@@ -259,7 +315,8 @@ int main(int argc, char* argv[])
         {
             const Seat& seat = seats[j];
 
-            if (j) cout << ",";
+            if (j > 0)
+                cout << ",";
 
             cout << "{\"seatNumber\":\""
                  << escapeJson(seat.getSeatNumber()) << "\""
