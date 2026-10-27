@@ -12,6 +12,71 @@ SkyBook is a flight booking and seat map management system.
 The project demonstrates flight searching, seat selection, booking management, and flight information display.
 
 The project uses C++ for core flight management logic, Node.js for the backend API, and React for the frontend interface.
+SYSTEM ARCHITECTURE DIAGRAM
+<img width="626" height="407" alt="image" src="https://github.com/user-attachments/assets/269d8bd9-acdd-4880-bdbe-d5e550e9c364" />
+## UML Class Diagram
+
+```mermaid
+classDiagram
+    class Admin {
+        -int adminId
+        -string name
+        +manageFlights()
+        +viewBookings()
+    }
+
+    class FlightManager {
+        -vector~Flight~ flights
+        +addFlight()
+        +removeFlight()
+        +findFlight()
+    }
+
+    class Flight {
+        -string flightNumber
+        -string source
+        -string destination
+        -string date
+        +getDetails()
+    }
+
+    class Passenger {
+        -int passengerId
+        -string name
+        -string email
+        -string phone
+        +viewBookings()
+    }
+
+    class Booking {
+        -int bookingId
+        -string seatNumber
+        -string status
+        +confirmBooking()
+        +cancelBooking()
+    }
+
+    class BookingException {
+        -string message
+        +what()
+    }
+
+    class FileManager {
+        -string fileName
+        +loadData()
+        +saveData()
+    }
+
+    Admin --> FlightManager : manages
+    FlightManager "1" --> "1..*" Flight : manages
+    Passenger "1" --> "0..*" Booking : makes
+    Booking "0..*" --> "1" Flight : reserves
+    Booking ..> BookingException : may throw
+    FileManager ..> Booking : loads and saves
+    FileManager ..> Flight : loads and saves
+    FileManager ..> Passenger : loads and saves
+```
+
 
 ## 2. Technologies Used
 
