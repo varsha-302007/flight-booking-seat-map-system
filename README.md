@@ -26,7 +26,7 @@ The project uses C++ for core flight management logic, Node.js for the backend A
 ## 3. Project Links
 
 **Live Website:**
-https://flight-booking-seat-map-system.vercel.app
+https://flight-booking-seat-map-sy-git-2a9102-varshasrinivasan3010-2747.vercel.app/
 
 **GitHub Repository:**
 https://github.com/varsha-302007/flight-booking-seat-map-system
