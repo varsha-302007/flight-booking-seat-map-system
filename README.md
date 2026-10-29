@@ -16,6 +16,7 @@ SYSTEM ARCHITECTURE DIAGRAM
 <img width="626" height="407" alt="image" src="https://github.com/user-attachments/assets/269d8bd9-acdd-4880-bdbe-d5e550e9c364" />
 ## UML Class Diagram
 
+<img width="1260" height="3210" alt="mermaid-diagram" src="https://github.com/user-attachments/assets/59a68d36-e431-468a-ae8c-28debe39b5e7" />
 
 
 ## 2. Technologies Used
